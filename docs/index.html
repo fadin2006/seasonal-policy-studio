@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seasonal Policy Studio</title>
+<meta name="description" content="Track a seasonal stochastic system, design decision-tree policies and check how far they are from the best possible policy. Research prototype built on a multi-stage stochastic generation-expansion model.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@500;600;700&display=swap">
+<style>
+:root{
+  --bg:#f3f6f8; --panel:#ffffff; --sunk:#f6f9fb; --ink:#13202b; --muted:#566675; --line:#d7e0e7; --grid:#e7ecf0; --axis:#b7c3cd;
+  --accent:#0f6e8c; --accent-ink:#0b5870; --accent-soft:#e1f1f6; --head1:#0b3d4f; --head2:#0f6e8c;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --neutral:#8f9dab; --bar:#86b6ef; --bar-strong:#1c5cab;
+  --good:#0ca30c; --good-ink:#006300; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --f-display:"Sora","Segoe UI",system-ui,sans-serif; --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --shadow:0 1px 2px rgba(16,32,43,.05),0 6px 18px rgba(16,32,43,.06);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c1218; --panel:#141c24; --sunk:#10171e; --ink:#e4ebf1; --muted:#93a4b3; --line:#25313c; --grid:#1d2832; --axis:#3a4855;
+  --accent:#4fb3d3; --accent-ink:#7fcbe4; --accent-soft:#15303b; --head1:#08222c; --head2:#0d4558;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --neutral:#6f7f8d; --bar:#256abf; --bar-strong:#86b6ef;
+  --good:#0ca30c; --good-ink:#5fd35f; --crit:#e66767; --shadow:none; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1218; --panel:#141c24; --sunk:#10171e; --ink:#e4ebf1; --muted:#93a4b3; --line:#25313c; --grid:#1d2832; --axis:#3a4855;
+  --accent:#4fb3d3; --accent-ink:#7fcbe4; --accent-soft:#15303b; --head1:#08222c; --head2:#0d4558;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --neutral:#6f7f8d; --bar:#256abf; --bar-strong:#86b6ef;
+  --good:#0ca30c; --good-ink:#5fd35f; --crit:#e66767; --shadow:none; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.top{background:linear-gradient(120deg,var(--head1),var(--head2));color:#fff}
+.top .in{max-width:1240px;margin:0 auto;padding:22px 18px 0}
+.brand{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.brand h1{font-family:var(--f-display);font-size:1.7rem;margin:0;letter-spacing:-.01em}
+.brand p{margin:4px 0 0;max-width:70ch;color:rgba(255,255,255,.82);font-size:.95rem}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:3px 11px;font-size:.78rem;color:#fff;background:rgba(255,255,255,.08);white-space:nowrap}
+.chip i{width:8px;height:8px;border-radius:50%;background:#9fb3bf;display:inline-block}.chip.on i{background:#57e389}
+.tabs{display:flex;gap:4px;margin-top:18px;overflow-x:auto}
+.tabs button{font:inherit;font-size:.92rem;font-weight:500;color:rgba(255,255,255,.8);background:transparent;border:0;border-radius:9px 9px 0 0;padding:10px 15px;cursor:pointer;white-space:nowrap;display:flex;gap:8px;align-items:center}
+.tabs button .n{font-family:var(--f-mono);font-size:.7rem;border:1px solid rgba(255,255,255,.4);border-radius:4px;padding:0 5px}
+.tabs button[aria-selected="true"]{background:var(--bg);color:var(--ink);font-weight:600}
+.tabs button[aria-selected="true"] .n{border-color:var(--accent);color:var(--accent)}
+.wrap{max-width:1240px;margin:0 auto;padding:16px 18px 56px;display:grid;gap:16px}
+.hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);min-width:0}
+.tile .l{font-size:.76rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.tile .v{font-family:var(--f-display);font-size:1.4rem;font-weight:600;line-height:1.25;margin-top:2px}
+.tile .v small{font-family:var(--f-body);font-size:.8rem;font-weight:400;color:var(--muted)}
+.tile .s{font-size:.8rem;color:var(--muted)}
+.tile select{width:100%;margin-top:4px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:12px;min-width:0;box-shadow:var(--shadow);align-content:start}
+.panel h2{font-family:var(--f-display);font-size:1.08rem;margin:0}
+.panel h3{font-size:.92rem;margin:4px 0 0}
+p{margin:0;max-width:88ch}.note{color:var(--muted);font-size:.86rem}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:16px}
+.wide{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+@media (max-width:900px){.wide{grid-template-columns:1fr}}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button,.btn{font:inherit;font-size:.86rem;border:1px solid var(--line);background:var(--sunk);color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.btn:hover,.seg button:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+select,input[type=number],input[type=text]{font:inherit;font-size:.9rem;color:var(--ink);background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:6px 9px;max-width:100%}
+label{font-size:.82rem;color:var(--muted);display:grid;gap:3px}
+.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.sq{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.83rem;color:var(--muted)}
+.key-line{display:inline-block;width:18px;height:0;border-top:2px solid var(--ink);vertical-align:middle;margin-right:6px}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{font-family:var(--f-body);fill:var(--muted);font-size:11px}
+svg .val{fill:var(--ink);font-size:11.5px}
+.tip{position:fixed;pointer-events:none;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:.82rem;box-shadow:0 6px 20px rgba(0,0,0,.16);max-width:290px;z-index:20;display:none}
+table{border-collapse:collapse;width:100%;font-size:.87rem}
+th,td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:.78rem}
+td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tscroll{overflow-x:auto}
+tr.win td{background:var(--accent-soft);font-weight:600}
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:1px 9px;font-size:.78rem;font-weight:600;border:1px solid var(--line);background:var(--sunk);white-space:nowrap}
+.badge.good{border-color:var(--good);color:var(--good-ink)}.badge.mid{border-color:var(--warn)}.badge.bad{border-color:var(--crit);color:var(--crit)}
+.meter{height:10px;border-radius:999px;background:var(--grid);overflow:hidden;margin-top:8px}
+.meter>div{height:100%;border-radius:999px;background:var(--accent);transition:width .25s}
+.verdict{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0;padding:10px 14px}
+.verdict.good{border-color:var(--good)}.verdict.bad{border-color:var(--crit)}.verdict.mid{border-color:var(--warn)}
+.verdict b{font-family:var(--f-display)}
+/* tree editor */
+.tree ul{list-style:none;margin:0;padding-left:20px;border-left:2px solid var(--line)}
+.tree>ul{padding-left:0;border-left:0}
+.tree li{margin:7px 0;position:relative}
+.tree .br{font-family:var(--f-mono);font-size:.72rem;color:var(--muted);margin-right:6px;text-transform:uppercase}
+.tree .node{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;background:var(--sunk);border:1px solid var(--line);border-radius:9px;padding:5px 8px}
+.tree .node.q{border-color:var(--accent)}
+.tree .node select{padding:3px 6px;font-size:.84rem;max-width:260px}
+.tree .mini{font:inherit;font-size:.74rem;border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:6px;padding:2px 7px;cursor:pointer}
+.tree .mini:hover{color:var(--ink);border-color:var(--accent)}
+.tree .act{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.tree .act button{font:inherit;font-size:.8rem;border:0;background:var(--panel);color:var(--ink);padding:3px 9px;cursor:pointer}
+.tree .act button[aria-pressed="true"]{background:var(--accent);color:#fff;font-weight:600}
+.tree .leaf{display:inline-block;border:1px solid var(--line);border-radius:7px;padding:1px 9px;background:var(--sunk);font-size:.86rem}
+.tree .test{font-weight:600;font-size:.9rem}
+.pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.pipe div{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--sunk);font-size:.87rem}
+.pipe b{display:block;font-family:var(--f-display);font-size:.92rem;margin-bottom:2px}
+.drop{border:1.5px dashed var(--axis);border-radius:10px;padding:12px;background:var(--sunk);display:grid;gap:8px}
+.msg{font-size:.85rem;border-radius:8px;padding:7px 10px;background:var(--accent-soft)}.msg.err{background:transparent;border:1px solid var(--crit);color:var(--crit)}
+.sl{display:grid;grid-template-columns:70px 1fr 54px;gap:8px;align-items:center;font-size:.84rem}
+.sl input{width:100%}
+footer{color:var(--muted);font-size:.84rem;display:grid;gap:6px}
+a{color:var(--accent)}code{font-family:var(--f-mono);font-size:.86em}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="top"><div class="in">
+  <div class="brand">
+    <div><h1>Seasonal Policy Studio</h1>
+    <p>Track a seasonal stochastic system, design a decision-tree policy, and see at once how far it is from the best possible policy.</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="chip" id="chipCase"></span><span class="chip" id="chipBackend"><i></i><span>Solver back end: checking</span></span></div>
+  </div>
+  <div class="tabs" role="tablist" id="tabs"></div>
+</div></div>
+<div class="wrap">
+  <div class="hero" id="hero"></div>
+  <main id="view"></main>
+  <footer>
+    <p><b>Research prototype.</b> The built-in case takes its eight seasonal splits, 24 joint demand, wind and solar states, probabilities and fleet sizes from the scenario data of <i>Reliable low-carbon power supply for cities: a deliverability-aware stochastic generation expansion approach</i> (Muna, Malik and Syed, submitted to Smart Cities, 3 November 2026). The maintenance decision, the stressed environments and all costs are assumptions of a single-node study case, not results of the expansion model.</p>
+    <p>M Fahrudin Muna, King Fahd University of Petroleum and Minerals. Costs are expected unserved energy in GWh per year plus a charge for unfinished maintenance.</p>
+  </footer>
+</div>
+<div class="tip" id="tip"></div>
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
